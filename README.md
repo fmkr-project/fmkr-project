@@ -1,4 +1,4 @@
-**Détection d'obstacles sur une voie ferrée**
+### Détection d'obstacles sur une voie ferrée
 
 {
 	Ceci est du texte de présentation.
