@@ -1,0 +1,6 @@
+Nouveautés de la séance :
+- fix : l'image était très brouillée en sortie du Sobel, correction en évaluant mieux la valeur de la nuance de gris
+- add : de nouveaux arguments pour chaque fonction
+- add : implémentation des filtres de SOBEL et de PREWITT
+
+- bug : l'image devient maintenant toute noire en sortie du Sobel
