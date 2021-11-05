@@ -1,9 +1,11 @@
+import numpy as np
 import imageio as io
 import matplotlib.pyplot as pl
-from copy import copy
+from copy import deepcopy
+from math import atan2
 
-cur_im = io.imread("dummy.png")
-imem = copy(cur_im)
+cur_im = io.imread("no_kiha.png")
+imem = deepcopy(cur_im)
 
 def render():
     "affiche l'image en cours de traitement avec plt"
@@ -39,18 +41,18 @@ def conv(im,mat):
         for col in range(len(im)-1):
             coord = im[col][li]
             coef = coord[0]
-            try:
-                hl = sum([im[j+col][i+li][0]*mat[i+center][j+center]\
+            #try:
+            hl = sum([im[j+col][i+li][0]*mat[i+center][j+center]\
                         for i in range(-center, center+1)\
                         for j in range(-center, center+1)])
-            except:
-                hl = 0
-            if hl < 0:
-                im[col][li][:3] = 0
-            elif hl > 255:
-                im[col][li][:3] = 255
-            else:
-                im[col][li][:3] = int(hl)
+            #except:
+            #    hl = 0
+            #if hl < 0:
+            #    im[col][li][:3] = 0
+            #elif hl > 255:
+            #    im[col][li][:3] = 255
+            #else:
+            im[col][li][:3] = int(hl)
 
 
 def prew_cont(im):
@@ -59,22 +61,44 @@ def prew_cont(im):
     conv(im,gaussian3)
     #conv(im,gaussian3) -> floutage plus poussé ?
     
-    imv = copy(im) # Copie de l'image pour les filtres de dérivation
-    imh = copy(im)
-    conv(imh,sob_h)
-    conv(imv,sob_v)
-
+    imv = deepcopy(im) # Copie de l'image pour les filtres de dérivation
+    imh = deepcopy(im)
+    direc = [[None for col in range(len(im[0])-1)]for li in range(len(im)-1)]
+    # Création d'un tableau vide de même taille que l'image
+    conv(imh,prew_h)
+    conv(imv,prew_v)
+    
+    
     for li in range(len(im[0])-1):
         for col in range(len(im)-1):
             coord = im[col][li]
             dx = imv[col][li][0]
             dy = imh[col][li][0]
             coord[:3] = (dx**2 + dy**2)**0.5
+            direc[col][li] = int((atan2(dy,dx)/(2*np.pi))*360)
+    print(direc)
+    
 
 
 
+##def duochrome(im):
+##    "transforme une image nuance de gris en image NB"
+##    for li in range(len(im[0])-1):
+##        for col in range(len(im)-1):
+##            coord = im[col][li]
+##            if coord[0] != coord[1] and coord[0] != coord[2]:
+##                coord[:3] = 0
+##            elif coord[0] < 128:
+##                coord[:3] = 0
+##            else:
+##                coord[:3] = 255
 
 
-
-
+def lowbound(im,thr=50):
+    "élimine les nuances de gris trop proches du blanc"
+    for li in range(len(im[0])-1):
+        for col in range(len(im)-1):
+            coord = im[col][li]
+            if coord[0] > thr:
+                coord[:3] = 255
 
