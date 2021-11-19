@@ -4,7 +4,10 @@ import matplotlib.pyplot as pl
 from copy import deepcopy
 from math import atan2
 
-cur_im = io.imread("no_kiha.png")
+#cur_im = io.imread("no_kiha.png")
+#cur_im = io.imread("dummy2.png") # HD
+cur_im = io.imread("nokiha_lr.png")
+
 imem = deepcopy(cur_im)
 
 
@@ -38,11 +41,23 @@ def new_mean(im,var,thr = 128):
             else:
                 is_bright = -1
             coord[:3] = coord[:3] + var*(is_bright)
+
+def histeq(im):
+    "égalise l'histogramme de l'image"
     
+
+
+
 
 grayscale(cur_im) # on travaille avec une image en NB pour la suite
 
 gaussian3 = [[1/16,1/8,1/16],[1/8,1/4,1/8],[1/16,1/8,1/16]]
+
+gaussian5 = [[1/273,4/273,7/273,4/273,1/273],\
+             [4/273,16/273,26/273,16/273,4/273],\
+             [7/273,26/273,41/273,26/273,7/273],\
+             [4/273,16/273,26/273,16/273,4/273],\
+             [1/273,4/273,7/273,4/273,1/273]]
 
 
 # Filtres de SOBEL
@@ -56,8 +71,8 @@ prew_h = [[1/3,0,-1/3],[1/3,0,-1/3],[1/3,0,-1/3]]
 prew_v = [[1/3,1/3,1/3],[0,0,0],[-1/3,-1/3,-1/3]]
 
 # Autres
-pb1 = [[-1,-1,-1],[-1,8,-1],[-1,-1,-1]]
 sharp = [[0,-1,0],[-1,5,-1],[0,-1,0]]
+lap = [[-1,-1,-1],[-1,8,-1],[-1,-1,-1]]
 
 
 
@@ -66,13 +81,13 @@ def conv(im,mat):
     imbis = deepcopy(im) # Copie pour préserver les données
     center = len(mat) // 2
     size = center
-    for li in range(len(im[0])-1):
-        for col in range(len(im)-1):
-            coord = im[col][li]
+    for li in range(len(im)-center):
+        for col in range(len(im[0])-center):
+            coord = im[li][col]
             coef = coord[0]
             mat_flat = [row[k] for row in mat for k in range(len(row))]
             # on aplatit la matrice de convolution
-            prox = [imbis[j+col][i+li][0]\
+            prox = [imbis[j+li][i+col][0]\
                     for i in range(-center, center+1)\
                     for j in range(-center, center+1)]
             hl = sum([prox[i]*mat_flat[i] for i in range(len(prox))])
@@ -85,13 +100,13 @@ def conv(im,mat):
             #elif hl > 255:
             #    im[col][li][:3] = 255
             #else:
-            im[col][li][:3] = int(hl)
+            im[li][col][:3] = int(hl)
 
 
 def sobcontour(im):
     "technique de détection des contours en utilisant les filtres de SOBEL"
-    #conv(im,gaussian3)
-    #conv(im,gaussian3) -> floutage plus poussé ?
+    #conv(im,gaussian5)
+    conv(im,gaussian5) # -> floutage plus poussé ?
     
     imv = deepcopy(im) # Copie de l'image pour les filtres de dérivation
     imh = deepcopy(im)
@@ -109,8 +124,12 @@ def sobcontour(im):
             coord[:3] = (dx**2 + dy**2)**0.5
             #direc[col][li] = int((atan2(dy,dx)/(2*np.pi))*360)
     
-    
-
+def laplacian(im):
+    "technique de détection en utilisant le laplacien"
+    conv(im,gaussian5)
+    conv(im,gaussian5)
+    conv(im,gaussian5)
+    conv(im,lap)
 
 
 def duochrome(im):
