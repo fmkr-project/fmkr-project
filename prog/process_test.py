@@ -13,9 +13,9 @@ imem = deepcopy(cur_im)
 
     
 
-def render():
+def render(im):
     "affiche l'image en cours de traitement avec plt"
-    pl.imshow(cur_im)
+    pl.imshow(im)
     pl.show()
 
 def normal():
@@ -79,6 +79,7 @@ lap = [[-1,-1,-1],[-1,8,-1],[-1,-1,-1]]
 def conv(im,mat):
     "applique une matrice de convolution à une image"
     imbis = deepcopy(im) # Copie pour préserver les données
+    maxi = -1
     center = len(mat) // 2
     size = center
     for li in range(len(im)-center):
@@ -91,22 +92,18 @@ def conv(im,mat):
                     for i in range(-center, center+1)\
                     for j in range(-center, center+1)]
             hl = sum([prox[i]*mat_flat[i] for i in range(len(prox))])
-            #print(prox)
-            #try:
-            #except:
-            #    hl = 0
-            #if hl < 0:
-            #    im[col][li][:3] = 0
-            #elif hl > 255:
-            #    im[col][li][:3] = 255
-            #else:
-            im[li][col][:3] = int(hl)
-
+            if hl > maxi:
+                maxi = hl
+            if hl < 0:
+                hl = 0
+            hl = int(255*hl/maxi)
+            #normalized[li][col] = int(255*hl/maxi)
+            im[li][col][:3] = hl
 
 def sobcontour(im):
     "technique de détection des contours en utilisant les filtres de SOBEL"
     #conv(im,gaussian5)
-    conv(im,gaussian5) # -> floutage plus poussé ?
+    #conv(im,gaussian5) # -> floutage plus poussé ?
     
     imv = deepcopy(im) # Copie de l'image pour les filtres de dérivation
     imh = deepcopy(im)
@@ -118,31 +115,22 @@ def sobcontour(im):
     
     for li in range(len(im[0])-1):
         for col in range(len(im)-1):
-            coord = im[col][li]
             dx = imv[col][li][0]
             dy = imh[col][li][0]
-            coord[:3] = (dx**2 + dy**2)**0.5
+            im[col][li][:3] = (dx**2 + dy**2)**0.5
             #direc[col][li] = int((atan2(dy,dx)/(2*np.pi))*360)
     
 def laplacian(im):
     "technique de détection en utilisant le laplacien"
     conv(im,gaussian5)
-    conv(im,gaussian5)
-    conv(im,gaussian5)
     conv(im,lap)
 
 
-def duochrome(im):
-    "transforme une image nuance de gris en image NB"
-    for li in range(len(im[0])-1):
-        for col in range(len(im)-1):
-            coord = im[col][li]
-            if coord[0] != coord[1] and coord[0] != coord[2]:
-                coord[:3] = 0
-            elif coord[0] < 128:
-                coord[:3] = 0
-            else:
-                coord[:3] = 255
+def enhance(im):
+    "debug"
+    for li in range(len(im[0])):
+        for col in range(len(im)):
+            im[col][li][:3] += 35
 
 
 def lowbound(im,thr=50):
