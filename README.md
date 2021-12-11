@@ -5,7 +5,7 @@ Dépôt de programmes pour la session 2021-2022 du TIPE.\
 ## Motivation
 Ayant pour envie de développer la partie "traitement de l'image" abordée en Informatique pour tous en deuxième année, et utilisant le logiciel "RailSim II" afin de concevoir des paysages ferroviaires réalistes, j'ai voulu étudier un peu plus en profondeur ce domaine de l'IPT qui n'est en Spé qu'effleuré afin d'allier ces deux programmes qui n'ont pourtant aucun lien apparent.  
   
-Avec la diminution des passages à niveau gardés de nos jours, il devient crucial de protéger ces points critiques, en particulier depuis la recrudescence des suicides. Certes, les lignes LGV ne disposent pas de telles infrastructures, mais les lignes rurales montagneuses disposent parfois de PN difficiles d'accès pour les secours qui ne peuvent alors pas intervenir à temps pour sauver le blessé.  
+Avec la diminution des passages à niveau gardés de nos jours, il devient crucial de protéger ces points critiques, en particulier depuis la recrudescence des suicides. Certes, les lignes LGV ne disposent pas de telles infrastructures, mais les lignes rurales montagneuses disposent parfois de PN difficiles d'accès pour les secours qui ne peuvent alors pas intervenir à temps pour tenter de sauver celui qui a tenté de se suicider...  
 
 ## Objectifs du TIPE
 - Pouvoir reconnaître sur une image le tracé de rails dans une configuration idéale (pas de trafic sur le passage à niveau, pas de train).
