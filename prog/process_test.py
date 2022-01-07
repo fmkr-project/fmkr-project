@@ -110,36 +110,36 @@ def conv(im,mat):
 
 def sconv(im, filter):
     """Convolution avec SciPy"""
-    nd.convolve(im, filter)
+    nd.correlate(im, filter)
 
 def sobcontour(im):
     "technique de détection des contours en utilisant les filtres de SOBEL"
+    maxi = -1 # Teinte la plus lumineuse
+
     imv = deepcopy(im) # Copie de l'image pour les filtres de dérivation
-    print(imv)
     imh = deepcopy(im)
 
-    direc = [[None for col in range(len(im[0])-1)]for li in range(len(im)-1)]
+    hl = [[None for col in range(len(im[0])-1)]for li in range(len(im)-1)]
     # Création d'un tableau vide de même taille que l'image
     sconv(imh,sob_h)
     sconv(imv,sob_v)
+    print(type(imh))
 
-    for li in range(len(im[0])-1):
-        for col in range(len(im)-1):
-            dx = imv[col][li]
-            dy = imh[col][li]
-            im[col][li] = (dx**2 + dy**2)**0.5
+    hl = (imh**2 + imv**2) ** 8
+    for li in range(len(im)-1):
+        for col in range(len(im[0])-1):
+    #        dx = imv[li][col]
+    #        dy = imh[li][col]
+    #        hl[li][col] = (dx**2 + dy**2)**0.5
+            if hl[li][col] > maxi:
+                maxi = hl[li][col]
+    #        if hl[li][col] < 0:
+    #            hl[li][col] = 0
+    #print(hl)
+    for li in range(len(im)-1):
+        for col in range(len(im[0])-1):
+            im[li][col] = int(255*hl[li][col] / maxi)
 
-def rebalance(im):
-    """Modifie l'histogramme de l'image pour que son maximum soit mis au blanc"""
-    maxi = -1
-    for li in range(len(im)):
-        for col in range(len(im[0])):
-            if im[li][col] > maxi:
-                maxi = im[li][col]
-    for li in range(len(im)):
-        for col in range(len(im[0])):
-            im[li][col] = int(255*im[li][col] / maxi)
-    
 def laplacian(im):
     "technique de détection en utilisant le laplacien"
     conv(im,gaussian5)
@@ -160,7 +160,6 @@ def mainloop():
     print(gsim)
 
     sobcontour(gsim)
-    rebalance(gsim)
     render(threedim(gsim))
 
 mainloop()
