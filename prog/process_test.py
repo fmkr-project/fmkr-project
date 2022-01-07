@@ -1,35 +1,77 @@
 import numpy as np
-import imageio as io
 import matplotlib.pyplot as pl
+import imageio as io
+from scipy import ndimage as nd
+import os
+
 from copy import deepcopy
 from math import atan2
 
+os.chdir("prog/")
+
+### Filtres
+gaussian3 = np.array([[1/16, 1/8, 1/16],
+                      [1/8, 1/4, 1/8],
+                      [1/16, 1/8, 1/16]])
+
+gaussian5 = np.array(
+            [[1/273,4/273,7/273,4/273,1/273],\
+             [4/273,16/273,26/273,16/273,4/273],\
+             [7/273,26/273,41/273,26/273,7/273],\
+             [4/273,16/273,26/273,16/273,4/273],\
+             [1/273,4/273,7/273,4/273,1/273]]
+             )
+
+# Filtres de SOBEL
+#sob_v = [[1/4,0,-1/4],[1/2,0,-1/2],[1/4,0,-1/4]]
+#sob_h = [[1/4,1/2,1/4],[0,0,0],[-1/4,-1/2,-1/4]]
+sob_v = np.array([[-1, 0, 1],
+                  [-2, 0, 2],
+                  [-1, 0, 1]])
+sob_h = np.array([[1, 2, 1],
+                  [0, 0, 0],
+                  [-1, -2, -1]])
+
+# Filtres de PREWITT
+prew_h = np.array([[1/3, 0, -1/3],
+                   [1/3, 0, -1/3],
+                   [1/3, 0, -1/3]])
+prew_v = np.array([[1/3, 1/3, 1/3],
+                   [0, 0, 0],
+                   [-1/3, -1/3, -1/3]])
+
+# Autres
+sharp = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
+lap = np.array([[-1,-1,-1],[-1,8,-1],[-1,-1,-1]])
+
+
+### Initialisation des images
 #cur_im = io.imread("no_kiha.png")
 #cur_im = io.imread("dummy2.png") # HD
-cur_im = io.imread("nokiha_lr.png")
-
+cur_im = np.array(io.imread("nokiha_lr.png"))
 imem = deepcopy(cur_im)
 
 
-    
-
 def render(im):
-    "affiche l'image en cours de traitement avec plt"
+    """Affichage d'une image avec Matplotlib"""
     pl.imshow(im)
     pl.show()
 
-def normal():
-    "affiche l'image d'origine"
-    pl.imshow(imem)
-    pl.show()
-
-def grayscale(im):
-    "passe une image en nuances de gris"
+def twodim(im):
+    """Retourne l'array 2D correspondant aux nuances de gris de l'image passée en argument"""
+    hl = [[0 for j in range(len(im[0]-1))] for i in range(len(im)-1)]
     for li in range(len(im[0])-1):
         for col in range(len(im)-1):
+            ab = []
             coord = im[col][li]
-            hl = 0.227*coord[0] + 0.587*coord[1] + 0.114*coord[2]
-            coord[:3] = hl
+            p = 0.227*coord[0] + 0.587*coord[1] + 0.114*coord[2]
+            ab.append(p)
+        hl.append(np.array(ab))
+    return(np.array([[0.227*im[i][j][0] + 0.587*im[i][j][1] + 0.114*im[i][j][2] for j in range(len(im[0])-1)] for i in range(len(im)-1)]))
+
+def threedim(im):
+    """Revient à un array à trois dimensions afin d'afficher les nuances de gris"""
+    return(np.array([[[int(im[i][j]) for _ in range(3)] for j in range(len(im[0])-1)] for i in range(len(im)-1)]))
 
 def new_mean(im,var,thr = 128):
     "modifie la luminosité de l'image"
@@ -41,40 +83,6 @@ def new_mean(im,var,thr = 128):
             else:
                 is_bright = -1
             coord[:3] = coord[:3] + var*(is_bright)
-
-def histeq(im):
-    "égalise l'histogramme de l'image"
-    
-
-
-
-
-grayscale(cur_im) # on travaille avec une image en NB pour la suite
-
-gaussian3 = [[1/16,1/8,1/16],[1/8,1/4,1/8],[1/16,1/8,1/16]]
-
-gaussian5 = [[1/273,4/273,7/273,4/273,1/273],\
-             [4/273,16/273,26/273,16/273,4/273],\
-             [7/273,26/273,41/273,26/273,7/273],\
-             [4/273,16/273,26/273,16/273,4/273],\
-             [1/273,4/273,7/273,4/273,1/273]]
-
-
-# Filtres de SOBEL
-#sob_v = [[1/4,0,-1/4],[1/2,0,-1/2],[1/4,0,-1/4]]
-#sob_h = [[1/4,1/2,1/4],[0,0,0],[-1/4,-1/2,-1/4]]
-sob_v = [[-1,0,1],[-2,0,2],[-1,0,1]]
-sob_h = [[1,2,1],[0,0,0],[-1,-2,-1]]
-
-# Filtres de PREWITT
-prew_h = [[1/3,0,-1/3],[1/3,0,-1/3],[1/3,0,-1/3]]
-prew_v = [[1/3,1/3,1/3],[0,0,0],[-1/3,-1/3,-1/3]]
-
-# Autres
-sharp = [[0,-1,0],[-1,5,-1],[0,-1,0]]
-lap = [[-1,-1,-1],[-1,8,-1],[-1,-1,-1]]
-
-
 
 def conv(im,mat):
     "applique une matrice de convolution à une image"
@@ -100,38 +108,42 @@ def conv(im,mat):
             #normalized[li][col] = int(255*hl/maxi)
             im[li][col][:3] = hl
 
+def sconv(im, filter):
+    """Convolution avec SciPy"""
+    nd.convolve(im, filter)
+
 def sobcontour(im):
     "technique de détection des contours en utilisant les filtres de SOBEL"
-    #conv(im,gaussian5)
-    #conv(im,gaussian5) # -> floutage plus poussé ?
-    
     imv = deepcopy(im) # Copie de l'image pour les filtres de dérivation
+    print(imv)
     imh = deepcopy(im)
+
     direc = [[None for col in range(len(im[0])-1)]for li in range(len(im)-1)]
     # Création d'un tableau vide de même taille que l'image
-    conv(imh,sob_h)
-    conv(imv,sob_v)
-    
-    
+    sconv(imh,sob_h)
+    sconv(imv,sob_v)
+
     for li in range(len(im[0])-1):
         for col in range(len(im)-1):
-            dx = imv[col][li][0]
-            dy = imh[col][li][0]
-            im[col][li][:3] = (dx**2 + dy**2)**0.5
-            #direc[col][li] = int((atan2(dy,dx)/(2*np.pi))*360)
+            dx = imv[col][li]
+            dy = imh[col][li]
+            im[col][li] = (dx**2 + dy**2)**0.5
+
+def rebalance(im):
+    """Modifie l'histogramme de l'image pour que son maximum soit mis au blanc"""
+    maxi = -1
+    for li in range(len(im)):
+        for col in range(len(im[0])):
+            if im[li][col] > maxi:
+                maxi = im[li][col]
+    for li in range(len(im)):
+        for col in range(len(im[0])):
+            im[li][col] = int(255*im[li][col] / maxi)
     
 def laplacian(im):
     "technique de détection en utilisant le laplacien"
     conv(im,gaussian5)
     conv(im,lap)
-
-
-def enhance(im):
-    "debug"
-    for li in range(len(im[0])):
-        for col in range(len(im)):
-            im[col][li][:3] += 35
-
 
 def lowbound(im,thr=50):
     "élimine les nuances de gris trop proches du blanc"
@@ -141,3 +153,14 @@ def lowbound(im,thr=50):
             if coord[0] > thr:
                 coord[:3] = 255
 
+def mainloop():
+    """Boucle principale du programme"""
+    print(cur_im)
+    gsim = twodim(cur_im) # on travaille avec une seule coordonnée
+    print(gsim)
+
+    sobcontour(gsim)
+    rebalance(gsim)
+    render(threedim(gsim))
+
+mainloop()
