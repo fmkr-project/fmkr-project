@@ -17,8 +17,6 @@ class Image():
     # Paramètres de l'hystérésis
     UPPER_COLOR = 255
     LOWER_COLOR = 45
-    UPPER_RATIO = 0.33
-    LOWER_RATIO = 0.12
 
     def __init__(self, path):
         self.rgb = np.array(io.imread(f"{self.IMAGES_PATH}{path}.png"))
@@ -26,6 +24,10 @@ class Image():
                             for j in range(len(self.rgb[0])-1)] for i in range(len(self.rgb)-1)])       # Array à 3 dimensions
         self.monodim = np.array([[int(0.227*self.rgb[i][j][0] + 0.587*self.rgb[i][j][1] + 0.114*self.rgb[i][j][2])
                             for j in range(len(self.rgb[0])-1)] for i in range(len(self.rgb)-1)])       # Array à une dimension
+        
+        # Ratios pour la catégorisation des contours
+        self.upper_ratio = 0.33
+        self.lower_ratio = 0.12
     
     def sconv(self, ker):
         """Convolution avec SciPy"""
@@ -69,8 +71,8 @@ class Image():
         
         def cat(im):
             """Sépare les contours en 3 catégories : contours forts, contours faibles et contours peu intéressants"""
-            bound_high = im.max() * self.UPPER_RATIO
-            bound_low = self.LOWER_RATIO * bound_high
+            bound_high = im.max() * self.upper_ratio
+            bound_low = self.lower_ratio * bound_high
             x,y = im.shape
             catted = np.zeros((x,y))
 
@@ -128,6 +130,22 @@ def render(im):
     plt.imshow(im)
     plt.show()
 
+def ratios_influence(impath, lrvalues, urvalues, step):
+    """Influence des deux ratios utilisés lors de la catégorisation des contours"""
+    for lr in range(lrvalues):
+        for ur in range(urvalues):
+            print(f"Processing {lr*lrvalues + ur + 1} of {lrvalues * urvalues}...")
+            img = Image(impath)     # Création de l'image ou écrasement des modifications apportées
+            img.lower_ratio = 0.1 + lr*step
+            img.upper_ratio = 0.3 + ur*step
+            img.canny()
+            plt.subplot(lrvalues, urvalues, lr*lrvalues + ur + 1)
+            plt.imshow(img.acc)
+    plt.show()
+
+
+# Filtres gaussiens
+
 gaussian3 = Kernel([[1/16, 1/8, 1/16],
                     [1/8, 1/4, 1/8],
                     [1/16, 1/8, 1/16]])
@@ -155,10 +173,6 @@ prew_v = Kernel([[1/3, 1/3, 1/3],
                 [0, 0, 0],
                 [-1/3, -1/3, -1/3]])
 
-# Autres
-sharp = Kernel([[0,-1,0],[-1,5,-1],[0,-1,0]])
-lap = Kernel([[-1,-1,-1],[-1,8,-1],[-1,-1,-1]])
-
 
 def threedim(im):
     """Revient à un array à trois dimensions afin d'afficher les nuances de gris"""
@@ -176,4 +190,5 @@ def mainloop():
     render(cur_im.acc)
 
 
-mainloop()
+#mainloop()
+ratios_influence("sta1_echigo", 3, 3, 0.1)
