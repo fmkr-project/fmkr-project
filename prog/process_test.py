@@ -1,3 +1,4 @@
+from turtle import st
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as lines
@@ -20,8 +21,8 @@ class Image():
     LOWER_COLOR = 45
 
     # Paramètres de l'espace de HOUGH
-    THETA_RES = 200      # Nombre de valeurs de θ possibles
-    RHO_RES = 200        # Nombre de valeurs de ρ possibles
+    THETA_RES = 350      # Nombre de valeurs de θ possibles
+    RHO_RES = 350        # Nombre de valeurs de ρ possibles
     INTERSEC_TH = 300    # Nombre minimal de sinusoïdales se coupant en un point pour la recherche des maxima
 
     def __init__(self, path):
@@ -31,6 +32,7 @@ class Image():
                             for j in range(len(self.rgb[0])-1)] for i in range(len(self.rgb)-1)])       # Array à 3 dimensions
         self.monodim = np.array([[int(0.227*self.rgb[i][j][0] + 0.587*self.rgb[i][j][1] + 0.114*self.rgb[i][j][2])
                             for j in range(len(self.rgb[0])-1)] for i in range(len(self.rgb)-1)])       # Array à une dimension
+        self.monodim = nd.convolve(self.monodim, gaussian5.contents)
         self.med = np.mean(self.monodim)
         self.max = self.monodim.max()
         self.shape = self.monodim.shape
@@ -117,7 +119,6 @@ class Image():
         self.sigma = 0.01
         self.upper_ratio = ((1 + self.sigma) * self.med) / self.max
         self.lower_ratio = ((1 - self.sigma) * self.med) / self.max
-        print(self.med, self.upper_ratio, self.lower_ratio)
 
         # Filtrage de SOBEL
         image_dx = deepcopy(self)       # Dérivée horizontale
@@ -160,17 +161,21 @@ class Image():
                         self.hspace[rh][th] += 1
         
         # Recherche des maxima
+        resolution = 0.95 * self.hspace.max()         # Nombre minimal d'intersections (95 % du max)
         self.lines = []     # Liste des lignes trouvées (tuple de deux points)
         for y in range(self.RHO_RES):
             for x in range(self.THETA_RES):
-                if self.hspace[y][x] >= self.INTERSEC_TH:
+                if self.hspace[y][x] >= resolution:
                     coords = (rhos[y], thetas[x])       # Coordonnées du maximum dans l'espace de HOUGH
                     a, b = np.cos(coords[1]), np.sin(coords[1])     # Pente et ordonnée à l'origine de la ligne équivalente (LEAVERS, 1992)
                     x0, y0 = a*coords[0] + self.shape[1]/2, b*coords[0] + self.shape[0]/2     # Coordonnées du point de la ligne le plus proche de l'origine
-                    y1, x1 = y0-300, 300*np.sin(coords[1]) + x0        # Coordonnées d'un point quelconque appartenant à la ligne
-                    f = lambda t : (y1-y0) / (x1-x0) * t + (y0 - (y1-y0)/(x1-x0)*x0)       # Fonction associée à la ligne
-                    self.lines.append(((x0, y0), (x1, y1), f))
-    
+                    y1, x1 = y0-200, 200*np.sin(coords[1]) + x0        # Coordonnées d'un point quelconque appartenant à la ligne
+                    alpha = (y1-y0) / (x1-x0)       # Coefficient directeur de la ligne
+                    beta = (y0 - alpha*x0)          # Ordonnée à l'origine
+                    f = lambda t : alpha*t + beta   # Fonction associée à la ligne
+                    frep = lambda y : y/alpha - beta/alpha      # Fonction réciproque
+                    self.lines.append(((x0, y0), (x1, y1), f, frep))
+        
     def align(self):
         """DEBUG. Affichage de l'image originale, de l'image cannyfiée, de l'espace de HOUGH, et de l'image avec les lignes détectées"""
         fig = plt.figure(figsize = (12, 12))
@@ -194,6 +199,78 @@ class Image():
         final.title.set_text("Lignes détectées")
         plt.show()
 
+    def line_pix(self, resolution = 300):
+        """Recherche de l'état des pixels sur une ligne donnée"""
+        self.obstacle_min_size = int(0.05 * resolution)           # Dimension minimale d'une discontinuité
+        self.pixels = []
+        print("Searching for obstacles...")
+
+        def adjacent_pix(x, y):
+            """Obtention de l'état des pixels voisins"""
+            im = self.mono_borders
+            res = []
+            for dx in range(-2, 3):
+                for dy in range(-2, 3):
+                    try:
+                        res.append(int(im[x+dx, y+dy]))
+                    except:
+                        res.append(0)
+            return(res)
+
+        # états B, BNB, BN, BNBN
+        for line in self.lines:
+            f, frep = line[2], line[3]
+            xs = np.linspace(frep(self.shape[0]-1), frep(0), resolution)        # Array des x étudiés
+            ys = f(xs)
+            xs = xs.astype(int)
+            ys = ys.astype(int)
+            pixs = []
+            for i in range(len(ys)):
+                if self.mono_borders[ys[i], xs[i]] != 0 or max(adjacent_pix(ys[i], xs[i])) > 0:
+                    pixs.append(255)
+                else:
+                    pixs.append(0)
+                self.rgb[ys[i], xs[i]] = [255, 255, 255, 0]
+            
+            # Correction des discontinuités de petite dimension
+            area_color = pixs[0]
+            # Suppression des valeurs 0 du début de la ligne (le rail commence avec une valeur 255)
+            while pixs[0] == 0:
+                del(pixs[0])
+            for t in range(len(pixs)):
+                if pixs[t] != area_color:
+                    v = 1
+                    try:
+                        while pixs[t+v] != area_color:
+                            v += 1
+                    except:
+                        pass
+                    if v < self.obstacle_min_size:
+                        try:
+                            for w in range(v+1):
+                                pixs[t+w] = area_color
+                        except:
+                            pass
+                    else:
+                        area_color = pixs[t+1]
+            self.pixels.append(pixs)
+    
+    def detect(self):
+        """Détection de la présence ou non d'un obstacle"""
+        for line in self.pixels:
+            current_linestate = []
+            area_color = line[0]
+            for t in range(len(line)):
+                if line[t] != area_color or t == len(line) - 1:
+                    current_linestate.append('N') if area_color == 0 else current_linestate.append('B')
+                area_color = line[t]
+            if current_linestate == ['B', 'N', 'B'] or current_linestate == ['B', 'N', 'B', 'N']:
+                return(True)
+        return(False)
+
+
+
+
 def debug(im):
     plt.axis('off')
     plt.imshow(im.rgb)
@@ -201,12 +278,27 @@ def debug(im):
         plt.axline(line[0], line[1], color = 'yellow')
     plt.show()
 
-def render(im, axis):
+def houghshow(im):
+    """debug"""
+    plt.axis('off')
+    plt.imshow(im.hspace)
+    plt.savefig("hspace.png", bbox_inches = 'tight')
+    plt.show()
+
+
+def render(im, axis = False):
     """Affichage d'une image avec Matplotlib"""
     if not axis:
         plt.axis('off')
-    plt.imshow(im.hspace)#, extent = (0, np.pi, -im.rhomax, im.rhomax))
+    plt.imshow(im.borders)
     plt.savefig("res.png", bbox_inches = 'tight')
+    plt.show()
+
+def r2(im : Image, axis = False):
+    """Affichage d'une image avec Matplotlib"""
+    if not axis:
+        plt.axis('off')
+    plt.imshow(im.mono_borders)
     plt.show()
 
 
@@ -251,10 +343,15 @@ def mainloop():
     ### Initialisation des images
     #cur_im = io.imread("no_kiha.png")
     #cur_im = io.imread("dummy2.png") # HD
-    cur_im = Image("tree")
+    cur_im = Image("empty3")
     cur_im.canny()
+    plt.axis('off')
+    plt.imshow(cur_im.borders)
+    plt.savefig("borders.png", bbox_inches = "tight")
     cur_im.hough()
-    debug(cur_im)
+    cur_im.line_pix()
+    print(cur_im.detect())
+    #debug(cur_im)
 
 
 mainloop()
