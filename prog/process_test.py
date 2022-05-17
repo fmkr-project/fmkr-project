@@ -29,9 +29,10 @@ class Image():
         self.rgb = np.array(io.imread(f"{self.IMAGES_PATH}{path}.png"))
         print("Converting image to GrayScale...")
         self.gs = np.array([[[int(0.227*self.rgb[i][j][0] + 0.587*self.rgb[i][j][1] + 0.114*self.rgb[i][j][2]) for _ in range(3)]
-                            for j in range(len(self.rgb[0])-1)] for i in range(len(self.rgb)-1)])       # Array à 3 dimensions
+                            for j in range(len(self.rgb[0]))] for i in range(len(self.rgb))])       # Array à 3 dimensions
         self.monodim = np.array([[int(0.227*self.rgb[i][j][0] + 0.587*self.rgb[i][j][1] + 0.114*self.rgb[i][j][2])
-                            for j in range(len(self.rgb[0])-1)] for i in range(len(self.rgb)-1)])       # Array à une dimension
+                            for j in range(len(self.rgb[0]))] for i in range(len(self.rgb))])       # Array à une dimension
+        #self.monodim = nd.convolve(self.monodim, gaussian3.contents)
         self.monodim = nd.convolve(self.monodim, gaussian5.contents)
         self.med = np.mean(self.monodim)
         self.max = self.monodim.max()
@@ -161,7 +162,7 @@ class Image():
                         self.hspace[rh][th] += 1
         
         # Recherche des maxima
-        resolution = 0.95 * self.hspace.max()         # Nombre minimal d'intersections (95 % du max)
+        resolution = 0.6 * self.hspace.max()         # Nombre minimal d'intersections (75 % du max)
         self.lines = []     # Liste des lignes trouvées (tuple de deux points)
         for y in range(self.RHO_RES):
             for x in range(self.THETA_RES):
@@ -199,9 +200,9 @@ class Image():
         final.title.set_text("Lignes détectées")
         plt.show()
 
-    def line_pix(self, resolution = 300):
+    def line_pix(self, resolution = 500):
         """Recherche de l'état des pixels sur une ligne donnée"""
-        self.obstacle_min_size = int(0.05 * resolution)           # Dimension minimale d'une discontinuité
+        self.obstacle_min_size = int(0.02 * resolution)           # Dimension minimale d'une discontinuité
         self.pixels = []
         print("Searching for obstacles...")
 
@@ -209,8 +210,8 @@ class Image():
             """Obtention de l'état des pixels voisins"""
             im = self.mono_borders
             res = []
-            for dx in range(-2, 3):
-                for dy in range(-2, 3):
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
                     try:
                         res.append(int(im[x+dx, y+dy]))
                     except:
@@ -226,7 +227,7 @@ class Image():
             ys = ys.astype(int)
             pixs = []
             for i in range(len(ys)):
-                if self.mono_borders[ys[i], xs[i]] != 0 or max(adjacent_pix(ys[i], xs[i])) > 0:
+                if self.mono_borders[ys[i], xs[i]] != 0:# or max(adjacent_pix(ys[i], xs[i])) > 0:
                     pixs.append(255)
                 else:
                     pixs.append(0)
@@ -257,6 +258,15 @@ class Image():
     
     def detect(self):
         """Détection de la présence ou non d'un obstacle"""
+        def blinks(array):
+            """Renvoie True si un N se situe entre deux B, sinon rien"""
+            for i in range(len(array)):
+                try:
+                    if array[i] == 'N' and array[i-1] == 'B' and array[i+1] == 'B':
+                        return(True)
+                except IndexError:
+                    pass
+
         for line in self.pixels:
             current_linestate = []
             area_color = line[0]
@@ -264,7 +274,7 @@ class Image():
                 if line[t] != area_color or t == len(line) - 1:
                     current_linestate.append('N') if area_color == 0 else current_linestate.append('B')
                 area_color = line[t]
-            if current_linestate == ['B', 'N', 'B'] or current_linestate == ['B', 'N', 'B', 'N']:
+            if blinks(current_linestate):
                 return(True)
         return(False)
 
@@ -299,6 +309,12 @@ def r2(im : Image, axis = False):
     if not axis:
         plt.axis('off')
     plt.imshow(im.mono_borders)
+    plt.show()
+
+def debugdebugdebugdebug(renderable_im):
+    plt.axis('off')
+    plt.imshow(renderable_im)
+    plt.savefig("acc.png", bbox_inches = 'tight')
     plt.show()
 
 
@@ -341,9 +357,7 @@ def mainloop():
     print("Processing...")
 
     ### Initialisation des images
-    #cur_im = io.imread("no_kiha.png")
-    #cur_im = io.imread("dummy2.png") # HD
-    cur_im = Image("empty3")
+    cur_im = Image("empty2")
     cur_im.canny()
     plt.axis('off')
     plt.imshow(cur_im.borders)
@@ -351,7 +365,7 @@ def mainloop():
     cur_im.hough()
     cur_im.line_pix()
     print(cur_im.detect())
-    #debug(cur_im)
+    debug(cur_im)
 
 
 mainloop()
