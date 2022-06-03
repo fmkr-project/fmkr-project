@@ -1,3 +1,4 @@
+from re import X
 from turtle import st
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,8 +22,8 @@ class Image():
     LOWER_COLOR = 45
 
     # Paramètres de l'espace de HOUGH
-    THETA_RES = 350      # Nombre de valeurs de θ possibles
-    RHO_RES = 350        # Nombre de valeurs de ρ possibles
+    THETA_RES = 500      # Nombre de valeurs de θ possibles
+    RHO_RES = 500        # Nombre de valeurs de ρ possibles
     INTERSEC_TH = 300    # Nombre minimal de sinusoïdales se coupant en un point pour la recherche des maxima
 
     def __init__(self, path):
@@ -33,7 +34,7 @@ class Image():
         self.monodim = np.array([[int(0.227*self.rgb[i][j][0] + 0.587*self.rgb[i][j][1] + 0.114*self.rgb[i][j][2])
                             for j in range(len(self.rgb[0]))] for i in range(len(self.rgb))])       # Array à une dimension
         #self.monodim = nd.convolve(self.monodim, gaussian3.contents)
-        self.monodim = nd.convolve(self.monodim, gaussian5.contents)
+        self.monodim = nd.convolve(self.monodim, gaussian3.contents)
         self.med = np.mean(self.monodim)
         self.max = self.monodim.max()
         self.shape = self.monodim.shape
@@ -162,7 +163,7 @@ class Image():
                         self.hspace[rh][th] += 1
         
         # Recherche des maxima
-        resolution = 0.6 * self.hspace.max()         # Nombre minimal d'intersections (75 % du max)
+        resolution = 0.6 * self.hspace.max()         # Nombre minimal d'intersections (60 % du max)
         self.lines = []     # Liste des lignes trouvées (tuple de deux points)
         for y in range(self.RHO_RES):
             for x in range(self.THETA_RES):
@@ -223,11 +224,12 @@ class Image():
             f, frep = line[2], line[3]
             xs = np.linspace(frep(self.shape[0]-1), frep(0), resolution)        # Array des x étudiés
             ys = f(xs)
-            xs = xs.astype(int)
-            ys = ys.astype(int)
+            xs = list(xs.astype(int))
+            ys = list(ys.astype(int))
+            xs,ys = np.array(xs), np.array(ys)
             pixs = []
             for i in range(len(ys)):
-                if self.mono_borders[ys[i], xs[i]] != 0:# or max(adjacent_pix(ys[i], xs[i])) > 0:
+                if self.mono_borders[ys[i], xs[i]] != 0 or max(adjacent_pix(ys[i], xs[i])) > 0:
                     pixs.append(255)
                 else:
                     pixs.append(0)
@@ -249,7 +251,7 @@ class Image():
                     if v < self.obstacle_min_size:
                         try:
                             for w in range(v+1):
-                                pixs[t+w] = area_color
+                                pixs[t+w] = area_color      # On "repeint" les zones trop petites
                         except:
                             pass
                     else:
@@ -313,7 +315,7 @@ def r2(im : Image, axis = False):
 
 def debugdebugdebugdebug(renderable_im):
     plt.axis('off')
-    plt.imshow(renderable_im)
+    plt.imshow(np.invert(renderable_im))
     plt.savefig("acc.png", bbox_inches = 'tight')
     plt.show()
 
@@ -357,15 +359,19 @@ def mainloop():
     print("Processing...")
 
     ### Initialisation des images
-    cur_im = Image("empty2")
+    cur_im = Image("empty5")
     cur_im.canny()
     plt.axis('off')
     plt.imshow(cur_im.borders)
     plt.savefig("borders.png", bbox_inches = "tight")
+    plt.clf()
     cur_im.hough()
-    cur_im.line_pix()
-    print(cur_im.detect())
     debug(cur_im)
+    cur_im.line_pix()
+    plt.imshow(cur_im.hspace)
+    plt.savefig("hough.png", bbox_inches = "tight")
+    plt.clf()
+    print(cur_im.detect())
 
 
 mainloop()
